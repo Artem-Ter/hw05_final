@@ -3,6 +3,7 @@ from http import HTTPStatus
 
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.core.cache import cache
 
 from ..models import Post, Group, User
 
@@ -37,6 +38,16 @@ class PostUrlTests(TestCase):
             reverse('posts:post_edit', kwargs={'post_id': cls.post.id})
         )
         cls.REVERSE_POST_CREATE = reverse('posts:post_create')
+        cls.REVERSE_ADD_COMMENT = reverse(
+            'posts:add_comment', kwargs={'post_id': cls.post.id}
+        )
+        cls.REVERSE_FOLLOW_INDEX = reverse('posts:follow_index')
+        cls.REVERSE_PROFILE_FOLLOW = reverse(
+            'posts:profile_follow', kwargs={'username': cls.post.author}
+        )
+        cls.REVERSE_PROFILE_UNFOLLOW = reverse(
+            'posts:profile_unfollow', kwargs={'username': cls.post.author}
+        )
         cls.UNEXISTING_PAGE = '/unexisting_page/'
 
     def setUp(self):
@@ -52,6 +63,9 @@ class PostUrlTests(TestCase):
         self.author = Client()
         self.author.force_login(self.user)
 
+    def tearDown(self) -> None:
+        cache.clear()
+
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
         # Шаблоны по адресам
@@ -62,6 +76,7 @@ class PostUrlTests(TestCase):
             self.REVERSE_POST_DETAIL: 'posts/post_detail.html',
             self.REVERSE_POST_EDIT: 'posts/create_post.html',
             self.REVERSE_POST_CREATE: 'posts/create_post.html',
+            self.REVERSE_FOLLOW_INDEX: 'posts/follow.html',
         }
         for address, template in templates_url_names.items():
             with self.subTest(address=address):
@@ -78,6 +93,10 @@ class PostUrlTests(TestCase):
             self.REVERSE_POST_DETAIL: HTTPStatus.OK,
             self.REVERSE_POST_EDIT: HTTPStatus.FOUND,
             self.REVERSE_POST_CREATE: HTTPStatus.FOUND,
+            self.REVERSE_ADD_COMMENT: HTTPStatus.FOUND,
+            self.REVERSE_FOLLOW_INDEX: HTTPStatus.FOUND,
+            self.REVERSE_PROFILE_FOLLOW: HTTPStatus.FOUND,
+            self.REVERSE_PROFILE_UNFOLLOW: HTTPStatus.FOUND,
             self.UNEXISTING_PAGE: HTTPStatus.NOT_FOUND,
         }
         for address, status in url_guest_client_status.items():
@@ -95,6 +114,10 @@ class PostUrlTests(TestCase):
             self.REVERSE_POST_DETAIL: HTTPStatus.OK,
             self.REVERSE_POST_EDIT: HTTPStatus.FOUND,
             self.REVERSE_POST_CREATE: HTTPStatus.OK,
+            self.REVERSE_ADD_COMMENT: HTTPStatus.FOUND,
+            self.REVERSE_FOLLOW_INDEX: HTTPStatus.OK,
+            self.REVERSE_PROFILE_FOLLOW: HTTPStatus.FOUND,
+            self.REVERSE_PROFILE_UNFOLLOW: HTTPStatus.FOUND,
             self.UNEXISTING_PAGE: HTTPStatus.NOT_FOUND,
         }
         for address, status in url_authorized_client_status.items():
@@ -112,6 +135,9 @@ class PostUrlTests(TestCase):
             self.REVERSE_POST_DETAIL: HTTPStatus.OK,
             self.REVERSE_POST_EDIT: HTTPStatus.OK,
             self.REVERSE_POST_CREATE: HTTPStatus.OK,
+            self.REVERSE_ADD_COMMENT: HTTPStatus.FOUND,
+            self.REVERSE_FOLLOW_INDEX: HTTPStatus.OK,
+            self.REVERSE_PROFILE_FOLLOW: HTTPStatus.FOUND,
             self.UNEXISTING_PAGE: HTTPStatus.NOT_FOUND,
         }
         for address, status in url_author_status.items():
