@@ -7,5 +7,5 @@ def page_not_found(request, exception):
     return render(request, 'core/404.html', {'path': request.path}, status=404)
 
 
-def permission_denied_view(request, reason=''):
+def csrf_failure(request, reason=''):
     return render(request, 'core/403csrf.html')

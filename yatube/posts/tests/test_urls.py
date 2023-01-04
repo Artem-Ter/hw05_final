@@ -84,7 +84,7 @@ class PostUrlTests(TestCase):
                 self.assertTemplateUsed(response, template)
 
     def test_guest_client_post_html_pages_available(self):
-        """Проверяет доступ к страницам Posts у неавторизованного клиента."""
+        """Проверяет доступы и редиректы к у неавторизованного клиента."""
         # Создаем словарь url: HTTPStatus для guest_client
         url_guest_client_status = {
             self.REVERSE_INDEX: HTTPStatus.OK,
@@ -103,6 +103,18 @@ class PostUrlTests(TestCase):
             with self.subTest(address=address):
                 response = self.guest_client.get(address)
                 self.assertEqual(response.status_code, status)
+        login_redirects = (
+            self.REVERSE_ADD_COMMENT,
+            self.REVERSE_FOLLOW_INDEX,
+        )
+        # Неавторизованный клиент перенаправлен на страницу авторизации
+        for url in login_redirects:
+            with self.subTest(url=url):
+                response = self.guest_client.get(url)
+                self.assertRedirects(
+                    response,
+                    f"{reverse('users:login')}?next={url}"
+                )
 
     def test_authorized_client_post_html_pages_available(self):
         """Проверяет доступ к страницам Posts у авторизованного клиента."""
