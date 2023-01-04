@@ -38,9 +38,6 @@ class PostUrlTests(TestCase):
         )
         cls.REVERSE_POST_CREATE = reverse('posts:post_create')
         cls.UNEXISTING_PAGE = '/unexisting_page/'
-        cls.REVERSE_ADD_COMMENT = (
-            reverse('posts:add_comment', kwargs={'post_id': cls.post.id})
-        )
 
     def setUp(self):
         # Создаем неавторизованный клиент
@@ -121,18 +118,3 @@ class PostUrlTests(TestCase):
             with self.subTest(address=address):
                 response = self.author.get(address)
                 self.assertEqual(response.status_code, status)
-
-    def test_add_comment_redirect_correclty(self):
-        """Проверяет, что add_comment перенаправляет на нужную страницу"""
-        # Create dict user_type: redirect_page
-        user_reirections = {
-            self.guest_client: (
-                f"{reverse('users:login')}?next={self.REVERSE_ADD_COMMENT}"
-            ),
-            self.authorized_client: self.REVERSE_POST_DETAIL,
-            self.author: self.REVERSE_POST_DETAIL,
-        }
-        for client, redirect_url in user_reirections.items():
-            with self.subTest(client=client):
-                response = client.get(self.REVERSE_ADD_COMMENT)
-                self.assertRedirects(response, redirect_url)

@@ -41,6 +41,12 @@ class PostCreateFormTest(TestCase):
             content=cls.small_gif,
             content_type='image/gif'
         )
+        cls.REVERSE_POST_DETAIL = (
+            reverse('posts:post_detail', kwargs={'post_id': cls.post.id})
+        )
+        cls.REVERSE_ADD_COMMENT = (
+            reverse('posts:add_comment', kwargs={'post_id': cls.post.id})
+        )
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -49,7 +55,9 @@ class PostCreateFormTest(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self) -> None:
-        # Создаем авторизованный клент.
+        # Создаем невторизованный клиент.
+        self.guest_client = Client()
+        # Создаем авторизованный клиент.
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
@@ -105,7 +113,7 @@ class PostCreateFormTest(TestCase):
         # Проверяем, сработал ли редирект
         self.assertRedirects(
             response,
-            reverse("posts:post_detail", kwargs={"post_id": self.post.id})
+            self.REVERSE_POST_DETAIL
         )
         # Проверяем, что число постов не изменилось
         self.assertEqual(Post.objects.count(), posts_count)
@@ -119,28 +127,55 @@ class PostCreateFormTest(TestCase):
         )
 
     def test_add_comment(self):
-        """Проверяет, что после успешной отправки
-        комментарий появляется на странице поста"""
-        # Подсчитаем количество комментариев у поста
+        """Проверяет, что после успешной отправки комментарий:
+        - авторизованного пользователя появляется на странице поста
+        - не авториованного пользователя не появляется на странице поста"""
+        # Подсчитываем количество комментариев у поста
         comment_count = self.post.comments.count()
-        form_data = {
-            'text': 'test_comment'
+        # Создаем словарь ключь - пользователь
+        # занчение - redirect_url, comment_text,
+        # add_comment_qty, comment_exist(True/False)
+        client_result = {
+            self.guest_client: (
+                f"{reverse('users:login')}?next={self.REVERSE_ADD_COMMENT}",
+                'authorized_comment',
+                0,
+                False
+            ),
+            self.authorized_client: (
+                self.REVERSE_POST_DETAIL,
+                'unathorized_comment',
+                1,
+                True
+            )
         }
-        response = self.authorized_client.post(
-            reverse('posts:add_comment', args=(self.post.id,)),
-            data=form_data,
-            follow=True
-        )
-        # Проверяем, сработал ли редирект
-        self.assertRedirects(
-            response,
-            reverse('posts:post_detail', kwargs={'post_id': self.post.id})
-        )
-        # Проверяем, увеличилось ли число комментариев у поста
-        self.assertEqual(self.post.comments.count(), comment_count + 1)
-        # Проверяем, что комментарий с заданным текстом создан у поста
-        self.assertTrue(
-            self.post.comments.filter(
-                text='test_comment'
-            ).exists()
-        )
+        for client, (redirect_url,
+                     comment_text,
+                     add_comment_qty,
+                     comment_exist) in client_result.items():
+            with self.subTest(client=client):
+                form_data = {
+                    'text': comment_text
+                }
+                response = client.post(
+                    self.REVERSE_ADD_COMMENT,
+                    data=form_data,
+                    follow=True
+                )
+                # Проверяем, сработал ли редирект
+                self.assertRedirects(
+                    response,
+                    redirect_url
+                )
+                # Проверяем, увеличилось ли число комментариев у поста
+                self.assertEqual(
+                    self.post.comments.count(),
+                    comment_count + add_comment_qty
+                )
+                # Проверяем, создан ли комментарий с заданным текстом у поста
+                self.assertEqual(
+                    self.post.comments.filter(
+                        text=comment_text
+                    ).exists(),
+                    comment_exist
+                )
