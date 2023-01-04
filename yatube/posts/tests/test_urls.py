@@ -113,7 +113,7 @@ class PostUrlTests(TestCase):
                 response = self.guest_client.get(url)
                 self.assertRedirects(
                     response,
-                    f"{reverse('users:login')}?next={url}"
+                    f"/auth//login/?next={url}"
                 )
 
     def test_authorized_client_post_html_pages_available(self):
