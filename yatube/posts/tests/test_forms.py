@@ -87,10 +87,8 @@ class PostCreateFormTest(TestCase):
         # Проверяем, что создалась запись с заданным текстом и группой
         self.assertTrue(
             Post.objects.filter(
-                text='test_text'
-            ).filter(
-                group_id=self.group.id
-            ).filter(
+                text='test_text',
+                group_id=self.group.id,
                 image=f'posts/{self.uploaded.name}'
             ).exists()
         )
@@ -120,8 +118,7 @@ class PostCreateFormTest(TestCase):
         # Проверяем, что запись с измененным текстом и группой существует
         self.assertTrue(
             Post.objects.filter(
-                text='edited_text'
-            ).filter(
+                text='edited_text',
                 group_id=self.group.id
             ).exists()
         )

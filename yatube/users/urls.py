@@ -23,7 +23,7 @@ urlpatterns = [
     path('login/',
          LoginView.as_view(template_name='registration/login.html'),
          name='login'),
-    path('/password_change/',
+    path('password_change/',
          PasswordChangeView.as_view(
              template_name='registration/password_change_form.html'
          ),

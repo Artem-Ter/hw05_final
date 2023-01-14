@@ -28,7 +28,10 @@ class PaginatorViewsTest(TestCase):
             reverse('posts:group_list', kwargs={'slug': cls.group.slug})
         )
         cls.REVERSE_PROFILE = (
-            reverse('posts:profile', kwargs={'username': cls.post.author})
+            reverse(
+                'posts:profile',
+                kwargs={'username': cls.post.author.username}
+            )
         )
         cls.check_pages = (
             cls.REVERSE_INDEX,

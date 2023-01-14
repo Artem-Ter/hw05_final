@@ -29,7 +29,10 @@ class PostUrlTests(TestCase):
             reverse('posts:group_list', kwargs={'slug': cls.group.slug})
         )
         cls.REVERSE_PROFILE = (
-            reverse('posts:profile', kwargs={'username': cls.post.author})
+            reverse(
+                'posts:profile',
+                kwargs={'username': cls.post.author.username}
+            )
         )
         cls.REVERSE_POST_DETAIL = (
             reverse('posts:post_detail', kwargs={'post_id': cls.post.id})
@@ -43,10 +46,12 @@ class PostUrlTests(TestCase):
         )
         cls.REVERSE_FOLLOW_INDEX = reverse('posts:follow_index')
         cls.REVERSE_PROFILE_FOLLOW = reverse(
-            'posts:profile_follow', kwargs={'username': cls.post.author}
+            'posts:profile_follow',
+            kwargs={'username': cls.post.author.username}
         )
         cls.REVERSE_PROFILE_UNFOLLOW = reverse(
-            'posts:profile_unfollow', kwargs={'username': cls.post.author}
+            'posts:profile_unfollow',
+            kwargs={'username': cls.post.author.username}
         )
         cls.UNEXISTING_PAGE = '/unexisting_page/'
 
@@ -84,7 +89,7 @@ class PostUrlTests(TestCase):
                 self.assertTemplateUsed(response, template)
 
     def test_guest_client_post_html_pages_available(self):
-        """Проверяет доступы и редиректы к у неавторизованного клиента."""
+        """Проверяет доступы и редиректы у неавторизованного клиента."""
         # Создаем словарь url: HTTPStatus для guest_client
         url_guest_client_status = {
             self.REVERSE_INDEX: HTTPStatus.OK,

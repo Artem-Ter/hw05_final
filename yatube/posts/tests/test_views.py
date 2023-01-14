@@ -21,6 +21,8 @@ class PostPagesTest(TestCase):
         super().setUpClass()
         # Создаем пользователя
         cls.user = User.objects.create_user(username='auth')
+        # Создаем пользователя на которого будет подписан user
+        cls.user_followed = User.objects.create_user(username='Followed')
         # Для тестирования загрузки изображений
         # берём байт-последовательность картинки,
         # состоящей из двух пикселей: белого и чёрного
@@ -38,22 +40,37 @@ class PostPagesTest(TestCase):
             content_type='image/gif'
         )
         cls.group = Group.objects.create(
-            title='Тестовая группа',
-            slug='test-slug',
+            title='Тестовая_группа',
+            slug='test_slug',
             description='Тестовое описание',
+        )
+        cls.group_1 = Group.objects.create(
+            title='Тест_группа_1',
+            slug='test_slug_1',
+            description='Тестовое_описание_1',
         )
         cls.post = Post.objects.create(
             author=cls.user,
-            text='Тестовый пост',
+            text='test_post',
             group=cls.group,
             image=cls.uploaded
+        )
+        # Создаем пост с отличаюшейся группой и автором для проверки
+        # контекста, подписок
+        cls.post_followed = Post.objects.create(
+            author=cls.user_followed,
+            text='test_text_followed',
+            group=cls.group_1,
         )
         cls.REVERSE_INDEX = reverse('posts:index')
         cls.REVERSE_GROUP_LIST = (
             reverse('posts:group_list', kwargs={'slug': cls.group.slug})
         )
         cls.REVERSE_PROFILE = (
-            reverse('posts:profile', kwargs={'username': cls.post.author})
+            reverse(
+                'posts:profile',
+                kwargs={'username': cls.post.author.username}
+            )
         )
         cls.REVERSE_POST_DETAIL = (
             reverse('posts:post_detail', kwargs={'post_id': cls.post.id})
@@ -71,7 +88,6 @@ class PostPagesTest(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
-        self.user_followed = User.objects.create_user(username='Followed')
         # Создаем неавторизованный клиент
         self.guest_client = Client()
         # Создаем авторизованный клиент
@@ -162,14 +178,9 @@ class PostPagesTest(TestCase):
     def test_post_with_group_not_in_wrong_group_list(self):
         """Проверяем, что пост с указанной группой не попал в группу,
         для которой не был предназначен."""
-        group_1 = Group.objects.create(
-            title='Тест_группа_1',
-            slug='test_slug_1',
-            description='Тестовое_описание_1',
-        )
         result = Post.objects.get(group=self.post.group)
         response = self.authorized_client.get(
-            reverse('posts:group_list', kwargs={'slug': group_1.slug})
+            reverse('posts:group_list', kwargs={'slug': self.group_1.slug})
         )
         self.assertNotIn(result, response.context['page_obj'])
 
@@ -179,7 +190,7 @@ class PostPagesTest(TestCase):
         на главную страницу,
         на страницу профайла,
         на страницу группы."""
-        # Перечень страниц на которых должна отобразится картинка
+        # Перечень страниц на которых должна отобразиться картинка
         url_with_images = (
             self.REVERSE_INDEX,
             self.REVERSE_GROUP_LIST,
@@ -188,8 +199,8 @@ class PostPagesTest(TestCase):
         for reverse_name in url_with_images:
             with self.subTest(reverse_name=reverse_name):
                 response = self.guest_client.get(reverse_name)
-                result = response.context.get('page_obj')[0].image
-                self.assertEqual(result, self.post.image)
+                result = response.context.get('page_obj')[-1]
+                self.assertEqual(result.image, self.post.image)
 
     def test_image_on_post_detail_page(self):
         """Проверяет, что при выводе поста с картинкой
@@ -215,27 +226,33 @@ class PostPagesTest(TestCase):
         cache_delete = self.guest_client.get(self.REVERSE_INDEX)
         self.assertNotEqual(cache_delete.content, response_content)
 
-    def test_autorized_client_follow_unfollow(self):
+    def test_autorized_client_follow(self):
         """Авторизованный пользователь может:
-        - подписываться на других пользователей
-        - удалять других пользователей из подписок."""
+        - подписываться на других пользователей"""
         self.authorized_client.get(
             reverse('posts:profile_follow',
                     args=(self.user_followed,)))
         self.assertTrue(
             Follow.objects.filter(
-                user=self.user
-            ).filter(
+                user=self.user,
                 author=self.user_followed
             ).exists()
+        )
+
+    def test_authorized_client_unfollow(self):
+        """Авторизованный пользователь может:
+        - удалять других пользователей из подписок."""
+        # Создаем подписку на user_followed у authorized_client
+        Follow.objects.create(
+            user=self.user,
+            author=self.user_followed
         )
         self.authorized_client.get(
             reverse('posts:profile_unfollow', args=(self.user_followed,))
         )
         self.assertFalse(
             Follow.objects.filter(
-                user=self.user
-            ).filter(
+                user=self.user,
                 author=self.user_followed
             ).exists()
         )
@@ -249,14 +266,10 @@ class PostPagesTest(TestCase):
             user=self.user,
             author=self.user_followed
         )
-        post_followed = Post.objects.create(
-            author=self.user_followed,
-            text='test_text_followed'
-        )
         # Проверяем, что post_followed отобразился у user
         response = self.authorized_client.get(reverse('posts:follow_index'))
-        self.assertContains(response, post_followed.text)
+        self.assertContains(response, self.post_followed.text)
         # Проверяем, что post_followed не отобразился у user_followed
         # т.к. user_followed не подписан на user_followed
         response1 = self.not_follower.get(reverse('posts:follow_index'))
-        self.assertNotContains(response1, post_followed.text)
+        self.assertNotContains(response1, self.post_followed.text)
